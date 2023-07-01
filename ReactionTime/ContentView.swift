@@ -61,7 +61,7 @@ struct ContentView: View {
                                 statusText = times.last?.elapsed.description ?? "ERROR"
                                 
                                 if canRelease {
-                                    var elapsed = Int((Date.now.timeIntervalSince(timer.triggerTime!) * 1000).rounded())
+                                    let elapsed = Int((Date.now.timeIntervalSince(timer.triggerTime!) * 1000).rounded())
                                     statusText = "Time: \(elapsed)ms"
                                     backgroundColor = .green
                                     times.append(Result(elapsed: elapsed, date: Date.now))
@@ -81,9 +81,11 @@ struct ContentView: View {
                 Text("Play")
             })
             VStack {
+                Text("List of reaction times (ms)").font(.headline)
                 List(times, rowContent: { id in
                     Text("\(id.description)")
                 })
+                Text("Average reaction time: \(averageTime)ms")
             }.tabItem({
                 Image(systemName: "list.bullet")
                 Text("Scores")
@@ -96,6 +98,11 @@ struct ContentView: View {
                     UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
             }
         #endif
+    }
+    
+    var averageTime: Int {
+        let sum = times.map { $0.elapsed }.reduce(0, +)
+        return (sum) / (times.count)
     }
 }
 
