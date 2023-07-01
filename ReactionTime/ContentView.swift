@@ -28,8 +28,10 @@ struct ContentView: View {
     @State var backgroundColor: Color = .red
     @State var statusText = "Click to start"
     @State var canRelease = false
-    
+    @State var confirmDeleteAll = false
     @State var times: [Result] = []
+    
+    @State var gestureStarted = false
     
     @StateObject var timer: ELTimer = ELTimer()
     
@@ -42,6 +44,8 @@ struct ContentView: View {
                         Rectangle().frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height).foregroundColor(.clear).contentShape(Rectangle())
                         
                             .gesture(DragGesture(minimumDistance: 0).onChanged({_ in
+                                guard !gestureStarted else { return }
+                                gestureStarted = true
                                 timer.timer?.invalidate()
                                 statusText = "HOLD..."
                                 backgroundColor = .red
@@ -55,9 +59,11 @@ struct ContentView: View {
                                     statusText = "RELEASE!"
 
                                 })
+                                print("Timer Starting")
                                 RunLoop.main.add(timer.timer!, forMode: .common)
                             }).onEnded({_ in
                                 timer.timer?.invalidate()
+                                gestureStarted = false
                                 statusText = times.last?.elapsed.description ?? "ERROR"
                                 
                                 if canRelease {
@@ -81,16 +87,43 @@ struct ContentView: View {
                 Text("Play")
             })
             VStack {
-                Text("List of reaction times (ms)").font(.headline)
-                List(times, rowContent: { id in
-                    Text("\(id.description)")
-                })
+                Button("Delete All") {
+                    confirmDeleteAll = true
+                }
+                List($times, id: \.self, editActions: .delete) { $id in
+                    Text(id.description)
+                }
                 Text("Average reaction time: \(averageTime)ms")
-            }.tabItem({
+            }.padding()
+            .tabItem({
                 Image(systemName: "list.bullet")
                 Text("Scores")
-            })
+            }).navigationTitle(Text("List of Reaction Times (ms)"))
         }.padding()
+        #if os(iOS)
+            .confirmationDialog("Delete all?", isPresented: $confirmDeleteAll) {
+                Text("Are you sure you want to remove all results?")
+                Button("Delete All", role: .destructive) {
+                    times = []
+                    confirmDeleteAll = false
+                }.buttonStyle(.borderedProminent)
+            }
+        #else
+            .sheet(isPresented: $confirmDeleteAll, content: {
+                VStack {
+                    Text("Are you sure you want to remove all results?").font(.headline)
+                    HStack {
+                        Button("Keep Data") {
+                            confirmDeleteAll = false
+                        }
+                        Button("Delete All", role: .destructive) {
+                            times = []
+                            confirmDeleteAll = false
+                        }.foregroundColor(.red)
+                    }
+                }.padding()
+            })
+        #endif
         #if os(iOS)
             .onAppear{
                 let tabBarAppearance = UITabBarAppearance()
@@ -101,6 +134,7 @@ struct ContentView: View {
     }
     
     var averageTime: Int {
+        guard times.count > 0 else { return 0 }
         let sum = times.map { $0.elapsed }.reduce(0, +)
         return (sum) / (times.count)
     }
